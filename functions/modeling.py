@@ -116,7 +116,6 @@ def compare_models(X, y, sort='Accuracy', auc='roc'):
     models = get_models()
     # get scores for each model
     for m in models:
-        print(m)
         m_scores = cross_validate(models[m], X, y,
                                   scoring=scoring, cv=cv, n_jobs=-1)
         m_scores = [m_scores[key].mean() for key in m_scores
