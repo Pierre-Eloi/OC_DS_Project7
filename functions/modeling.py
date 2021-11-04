@@ -48,7 +48,7 @@ def get_models():
     models['Ridge Classifier'] = RidgeClassifier()
     models['Logistic Regression'] = SGDClassifier(loss='log', random_state=42)
     models['SVM - Linear kernel'] = SGDClassifier(loss='hinge', random_state=42)
-    models['K Neighbors Classifier'] = KNeighborsClassifier()
+    # models['K Neighbors Classifier'] = KNeighborsClassifier()
     models['Gaussian Naive Bayes'] = GaussianNB()
     models['Decision Tree Classifier'] = DecisionTreeClassifier(random_state=42)
     models['Random Forest Classifier'] = RandomForestClassifier(random_state=42)
