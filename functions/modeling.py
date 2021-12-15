@@ -7,13 +7,10 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import StratifiedKFold
 from sklearn.model_selection import cross_validate
-from sklearn.linear_model import RidgeClassifier
 from sklearn.linear_model import SGDClassifier
-from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import GradientBoostingClassifier
 from xgboost import XGBClassifier
 from catboost import CatBoostClassifier
 from lightgbm import LGBMClassifier
@@ -45,14 +42,13 @@ def get_models():
         dict
     """
     models = {}
-    models['Ridge Classifier'] = RidgeClassifier()
     models['Logistic Regression'] = SGDClassifier(loss='log', random_state=42)
     models['SVM - Linear kernel'] = SGDClassifier(loss='hinge', random_state=42)
-    # models['K Neighbors Classifier'] = KNeighborsClassifier()
     models['Gaussian Naive Bayes'] = GaussianNB()
     models['Decision Tree Classifier'] = DecisionTreeClassifier(random_state=42)
-    models['Random Forest Classifier'] = RandomForestClassifier(random_state=42)
-    models['Gradient Boosting Classifier'] = GradientBoostingClassifier(random_state=42)
+    models['Random Forest Classifier'] = RandomForestClassifier(random_state=42,
+                                                                bootstrap=True,
+                                                                n_jobs=-1)
     models['XGBoost Classifier'] = XGBClassifier(random_state=42)
     models['CatBoost Classifier'] = CatBoostClassifier()
     models['LightGBM Classifier'] = LGBMClassifier()
