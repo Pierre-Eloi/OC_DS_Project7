@@ -5,176 +5,192 @@
 
 import numpy as np
 import pandas as pd
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import OneHotEncoder
-from sklearn.preprocessing import FunctionTransformer
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.preprocessing import MaxAbsScaler, StandardScaler
 
-def drop_na_att(X, na_threshold=.3):
+class NaAttFilter(BaseEstimator, TransformerMixin):
     """Drop all attributes with a percentage of missing values higher than na_treshold.
-    -----------
+
     Parameters:
-    X: DataFrame
-        The input samples
+    -----------
     na_threshold: float, default=0.3
         Control the features to drop
     """
-    if na_threshold > 1:
-        na_threshold /= 100
-    mask = X.isna().sum()/len(X) > na_threshold
-    att_to_del = list(X.loc[:, mask])
-    return X.drop(att_to_del, axis=1)
+    def __init__(self, na_threshold=.3):
+        self.na_threshold = na_threshold
+    def fit(self, X, y=None):
+        if self.na_threshold > 1:
+            self.na_threshold /= 100
+        na_perc = X.isna().sum() / X.shape[0]
+        self.mask_ = na_perc > self.na_threshold
+        return self
+    def transform(self, X):
+        return X.loc[:, ~self.mask_]
 
-def impute_cat_att(X, values=None):
-    """Impute missing values in categorical attribute with the most frequent category
-    -----------
-    Parameters:
-    X: DataFrame
-        The input samples
-    values: Series, default=None
-        Values to use to fill holes.
-    """
-    if values is None:
-        values = drop_na_att(X).value_counts().index[0]
-    cat_att = list(X.select_dtypes('object'))
-    cat_val = dict(zip(cat_att, values))
-    return X[cat_att].fillna(cat_val)
-
-def fix_sparse_anomalies(X):
-    """Function to fix anomalies for the following features:
+class SparseCleaner(BaseEstimator, TransformerMixin):
+    """Fix anomalies for the following features:
     - DEF_30_CNT_SOCIAL_CIRCLE
     - DEF_60_CNT_SOCIAL_CIRCLE
     - AMT_REQ_CREDIT_BUREAU_QRT
-    -----------
-    Parameters:
-    X: DataFrame
-        The input samples
     """
-    return (X.assign(DEF_30_CNT_SOCIAL_CIRCLE=lambda x: \
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X):
+        return (X.assign(DEF_30_CNT_SOCIAL_CIRCLE=lambda x: \
                      x['DEF_30_CNT_SOCIAL_CIRCLE'].where(x['DEF_30_CNT_SOCIAL_CIRCLE']<11,
                                                            np.nan))
-             .assign(DEF_60_CNT_SOCIAL_CIRCLE=lambda x: \
+                 .assign(DEF_60_CNT_SOCIAL_CIRCLE=lambda x: \
                      x['DEF_60_CNT_SOCIAL_CIRCLE'].where(x['DEF_60_CNT_SOCIAL_CIRCLE']<11,
                                                          np.nan))
-             .assign(AMT_REQ_CREDIT_BUREAU_QRT=lambda x: \
+                 .assign(AMT_REQ_CREDIT_BUREAU_QRT=lambda x: \
                      x['AMT_REQ_CREDIT_BUREAU_QRT'].where(x['AMT_REQ_CREDIT_BUREAU_QRT']<11,
                                                           np.nan)))
 
-def fix_dense_anomalies(X):
+class DenseCleaner(BaseEstimator, TransformerMixin):
     """Function to fix anomalies for the following features:
     - DAYS_EMPLOYED
     - AMT_INCOME_TOTAL
-    -----------
-    Parameters:
-    X: DataFrame
-        The input samples
     """
-    return (X.assign(DAYS_EMPLOYED_ANOM=lambda x: x['DAYS_EMPLOYED'] > 36500)
-             .assign(DAYS_EMPLOYED_ANOM=lambda x: x['DAYS_EMPLOYED_ANOM'].astype(int))
-             .assign(DAYS_EMPLOYED_ANOM=lambda x: x['DAYS_EMPLOYED_ANOM'].fillna(0))
-             .assign(DAYS_EMPLOYED=lambda x: \
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X):
+        return (X.assign(DAYS_EMPLOYED_ANOM=lambda x: x['DAYS_EMPLOYED'] > 36500)
+                 .assign(DAYS_EMPLOYED_ANOM=lambda x: x['DAYS_EMPLOYED_ANOM'].astype(int))
+                 .assign(DAYS_EMPLOYED_ANOM=lambda x: x['DAYS_EMPLOYED_ANOM'].fillna(0))
+                 .assign(DAYS_EMPLOYED=lambda x: \
                      x['DAYS_EMPLOYED'].where(x['DAYS_EMPLOYED']<=36500, np.nan))
-             .assign(AMT_INCOME_TOTAL=lambda x: \
+                 .assign(AMT_INCOME_TOTAL=lambda x: \
                      x['AMT_INCOME_TOTAL'].where(x['AMT_INCOME_TOTAL']<100_000_000,
                                                  np.nan)))
 
 # Add polynomial features
-def add_polynomial_att(X, names, degree=2, add_poly_features=True):
-    """Generate polynomial and interaction features.
-    Only the two most TARGET correlated features are taken into account:
-    - 'EXT_SOURCE_2'
-    - 'EXT_SOURCE_3'
-    -----------
+class PolyAdder(BaseEstimator, TransformerMixin):
+    """Generate polynomial and interaction features with the following features:
+    - 'DAYS_EMPLOYED'
+    - 'DAYS_BIRTH'
     Parameters:
-    X: array_like
-        The input samples
-    names: list-like
-        A list of columns names
-    degree: int, default=3
+    -----------
+    degree: int, default=2
         The degree of the polynomial features
     add_poly_features: bool, default=True
         If False, no polynomial features are added
     """
-    # Tansform the array to a DataFrame
-    df = pd.DataFrame(X, columns=names)
-    if add_poly_features:
-        poly_att = ['EXT_SOURCE_2', 'EXT_SOURCE_3']
-        n = len(poly_att)
-        # create the polynomial object with specified degree
-        poly_transformer = PolynomialFeatures(degree=degree, include_bias=False)
-        # Transform the features
-        X_tr = poly_transformer.fit_transform(df[poly_att])[:, n:]
-        poly_df = pd.DataFrame(X_tr,
-                               columns=poly_transformer.get_feature_names(poly_att)[n:])
-        return pd.concat([df, poly_df], axis=1)
-    else:
-        return df
+    def __init__(self, degree=2, add_poly=True):
+        self.degree = degree
+        self.add_poly = add_poly
+        self.poly_att = ['DAYS_EMPLOYED', 'DAYS_BIRTH']
+
+    def fit(self, X, y=None):
+        if self.add_poly:
+            # no values must be imputed
+            self.imputer_ = SimpleImputer()
+            X_imp = self.imputer_.fit_transform(X[self.poly_att])
+            self.poly_tr_ = PolynomialFeatures(degree=self.degree,
+                                               include_bias=False)
+            self.poly_tr_.fit(X_imp)
+            self.get_feature_names_ = self.poly_tr_.get_feature_names_out(self.poly_att)[2:]
+        return self
+
+    def transform(self, X):
+        if self.add_poly:
+            X_poly = self.imputer_.transform(X[self.poly_att])
+            X_tr = self.poly_tr_.transform(X_poly)[:, 2:]
+            df_extra = pd.DataFrame(X_tr,
+                columns=self.poly_tr_.get_feature_names_out(self.poly_att)[2:])
+            return pd.concat([X, df_extra], axis=1)
+        else:
+            return X
 
 # Add domain knowledge features
-def add_domain_att(X, add_domain_features=True):
-    """Function to add five domain Knowledge attributes:
+class DomainAdder(BaseEstimator, TransformerMixin):
+    """Add five domain Knowledge attributes:
     - DAYS_EMPLOYED_PERC: the percentage of the days employed relative to the client's age
     - CREDIT_INCOME_PERC: the percentage of the credit amount relative to a client's income
     - INCOME_PER_PERSON: the client's income relative to the size of the client's family
     - ANNUITY_INCOME_PERC: the percentage of the loan annuity relative to a client's income
     - CREDIT_TERM: the length of the payment in years
-    -----------
     Parameters:
-    X: DataFrame
-        The input samples
+    -----------
     add_domain_features: bool, default=True
         If False, no domain features are added
     """
-    if add_domain_features:
-        return (X.assign(DAYS_EMPLOYED_PERC=lambda x:
+    def __init__(self, add_domain=True):
+        self.add_domain = add_domain
+
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X):
+        if self.add_domain:
+            return (X.assign(DAYS_EMPLOYED_PERC=lambda x:
                          x['DAYS_EMPLOYED'] / x['DAYS_BIRTH'])
-                 .assign(CREDIT_INCOME_PERC=lambda x:
+                     .assign(CREDIT_INCOME_PERC=lambda x:
                          x['AMT_CREDIT'] / x['AMT_INCOME_TOTAL'])
-                 .assign(INCOME_PER_PERSON=lambda x:
+                     .assign(INCOME_PER_PERSON=lambda x:
                          x['AMT_INCOME_TOTAL'] / x['CNT_FAM_MEMBERS'])
-                 .assign(ANNUITY_INCOME_PERC=lambda x:
+                     .assign(ANNUITY_INCOME_PERC=lambda x:
                          x['AMT_ANNUITY'] / x['AMT_INCOME_TOTAL'])
-                 .assign(CREDIT_TERM=lambda x:
+                     .assign(CREDIT_TERM=lambda x:
                          x['AMT_ANNUITY'] / x['AMT_CREDIT']))
-    else:
-        return X
+        else:
+            return X
 
 # Add Basic transformations
-def tr_skew_att(X, log=True, threshold=1.):
+class SkewCleaner(BaseEstimator, TransformerMixin):
     """Transform data with an abs(skewness) > threshold
     For data with negative skewness, data are reflected first.
-    -----------
     Parameters:
-    X: array-like
-        The input samples
+    -----------
     log: bool, default False
         If True use the log transformation otherwise use the square root
     threshold: float, default=1.0
         Control the features to transform
     """
-    #X = pd.DataFrame(X)
-    #X.columns = X.columns.astype(str)
-    # Keep only features with at least 100 distinct elements
-    mask = list(X.loc[:, X.nunique() > 100])
-    # get features to transform
-    neg_skew_att = list(X[mask].skew().index[X[mask].skew() < -threshold])
-    pos_skew_att = list(X[mask].skew().index[X[mask].skew() > threshold])
-    if log:
-        dic_neg = dict(zip(neg_skew_att,
-                           [np.log(1 + X[c].max() - X[c])
-                            for c in neg_skew_att]))
-        dic_pos = dict(zip(pos_skew_att,
-                           [np.log(1 + X[c])
-                            for c in pos_skew_att]))
-        return (X.assign(**dic_neg)
-                 .assign(**dic_pos))
-    else:
-        dic_neg = dict(zip(neg_skew_att,
-                           [np.sqrt(1 + X[c].max() - X[c])
-                            for c in neg_skew_att]))
-        dic_pos = dict(zip(pos_skew_att,
-                           [np.sqrt(1+ X[c])
-                            for c in pos_skew_att]))
-        return (X.assign(**dic_neg)
-                 .assign(**dic_pos))
+    def __init__(self, log=True, threshold=1.):
+        self.log = log
+        self.threshold = threshold
+
+    def fit(self, X, y=None):
+        # Keep only features with at least 100 distinct elements
+        mask = list(X.loc[:, X.nunique() > 100])
+        # get features to transform
+        self.neg_skew_att_ = list(X[mask].skew().index[X[mask].skew() < -self.threshold])
+        self.pos_skew_att_ = list(X[mask].skew().index[X[mask].skew() > self.threshold])
+        # get max for negative skewness features
+        max_series = pd.Series(X[self.neg_skew_att_].max(),
+                               index=self.neg_skew_att_)
+        if self.log:
+            self.dic_neg_ = dict(zip(self.neg_skew_att_,
+                                    [np.log(1 + max_series[c] - X[c])
+                                    for c in self.neg_skew_att_]))
+            self.dic_pos_ = dict(zip(self.pos_skew_att_,
+                                    [np.log(1 + X[c])
+                                    for c in self.pos_skew_att_]))
+        else:
+            self.dic_neg_ = dict(zip(self.neg_skew_att_,
+                                    [np.sqrt(1 + max_series[c] - X[c])
+                                    for c in self.neg_skew_att_]))
+            self.dic_pos_ = dict(zip(self.pos_skew_att_,
+                                    [np.sqrt(1+ X[c])
+                                    for c in self.pos_skew_att_]))
+        return self
+
+    def get_feature_names(self):
+        if self.log:
+            neg_att_names = [c + "_log_rev" for c in self.neg_skew_att_]
+            pos_att_names = [c + "_log" for c in self.pos_skew_att_]
+        else:
+            neg_att_names = [c + "_sqrt_rev" for c in self.neg_skew_att_]
+            pos_att_names = [c + "_sqrt" for c in self.pos_skew_att_]
+        return dict(zip(self.neg_skew_att + self.pos_skew_att,
+                        neg_att_names + pos_att_names))
+
+
+    def transform(self, X):
+        return (X.assign(**self.dic_neg_)
+                 .assign(**self.dic_pos_))
