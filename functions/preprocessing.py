@@ -24,8 +24,8 @@ class NaAttFilter(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):
         if self.na_threshold > 1:
             self.na_threshold /= 100
-        na_perc = X.isna().sum() / X.shape[0]
-        self.mask_ = na_perc > self.na_threshold
+        self.na_perc = X.isna().sum() / X.shape[0]
+        self.mask_ = self.na_perc > self.na_threshold
         return self
     def transform(self, X):
         return X.loc[:, ~self.mask_]
@@ -63,48 +63,10 @@ class DenseCleaner(BaseEstimator, TransformerMixin):
                  .assign(DAYS_EMPLOYED_ANOM=lambda x: x['DAYS_EMPLOYED_ANOM'].astype(int))
                  .assign(DAYS_EMPLOYED_ANOM=lambda x: x['DAYS_EMPLOYED_ANOM'].fillna(0))
                  .assign(DAYS_EMPLOYED=lambda x: \
-                     x['DAYS_EMPLOYED'].where(x['DAYS_EMPLOYED']<=36500, np.nan))
+                     x['DAYS_EMPLOYED'].where(x['DAYS_EMPLOYED']<36500, np.nan))
                  .assign(AMT_INCOME_TOTAL=lambda x: \
                      x['AMT_INCOME_TOTAL'].where(x['AMT_INCOME_TOTAL']<100_000_000,
                                                  np.nan)))
-
-# Add polynomial features
-class PolyAdder(BaseEstimator, TransformerMixin):
-    """Generate polynomial and interaction features with the following features:
-    - 'DAYS_EMPLOYED'
-    - 'DAYS_BIRTH'
-    Parameters:
-    -----------
-    degree: int, default=2
-        The degree of the polynomial features
-    add_poly_features: bool, default=True
-        If False, no polynomial features are added
-    """
-    def __init__(self, degree=2, add_poly=True):
-        self.degree = degree
-        self.add_poly = add_poly
-        self.poly_att = ['DAYS_EMPLOYED', 'DAYS_BIRTH']
-
-    def fit(self, X, y=None):
-        if self.add_poly:
-            # no values must be imputed
-            self.imputer_ = SimpleImputer()
-            X_imp = self.imputer_.fit_transform(X[self.poly_att])
-            self.poly_tr_ = PolynomialFeatures(degree=self.degree,
-                                               include_bias=False)
-            self.poly_tr_.fit(X_imp)
-            self.get_feature_names_ = self.poly_tr_.get_feature_names_out(self.poly_att)[2:]
-        return self
-
-    def transform(self, X):
-        if self.add_poly:
-            X_poly = self.imputer_.transform(X[self.poly_att])
-            X_tr = self.poly_tr_.transform(X_poly)[:, 2:]
-            df_extra = pd.DataFrame(X_tr,
-                columns=self.poly_tr_.get_feature_names_out(self.poly_att)[2:])
-            return pd.concat([X, df_extra], axis=1)
-        else:
-            return X
 
 # Add domain knowledge features
 class DomainAdder(BaseEstimator, TransformerMixin):
@@ -159,26 +121,25 @@ class SkewCleaner(BaseEstimator, TransformerMixin):
         # Keep only features with at least 100 distinct elements
         mask = list(X.loc[:, X.nunique() > 100])
         # get features to transform
-        self.neg_skew_att_ = list(X[mask].skew().index[X[mask].skew() < -self.threshold])
-        self.pos_skew_att_ = list(X[mask].skew().index[X[mask].skew() > self.threshold])
+        self.neg_skew_att_ = list(X[mask].loc[:, X[mask].skew() < -self.threshold])
+        self.pos_skew_att_ = list(X[mask].loc[:, X[mask].skew() > self.threshold])
         # get max for negative skewness features
-        max_series = pd.Series(X[self.neg_skew_att_].max(),
-                               index=self.neg_skew_att_)
-        if self.log:
-            self.dic_neg_ = dict(zip(self.neg_skew_att_,
-                                    [np.log(1 + max_series[c] - X[c])
-                                    for c in self.neg_skew_att_]))
-            self.dic_pos_ = dict(zip(self.pos_skew_att_,
-                                    [np.log(1 + X[c])
-                                    for c in self.pos_skew_att_]))
-        else:
-            self.dic_neg_ = dict(zip(self.neg_skew_att_,
-                                    [np.sqrt(1 + max_series[c] - X[c])
-                                    for c in self.neg_skew_att_]))
-            self.dic_pos_ = dict(zip(self.pos_skew_att_,
-                                    [np.sqrt(1+ X[c])
-                                    for c in self.pos_skew_att_]))
+        self.max = np.array(X[self.neg_skew_att_].max())
         return self
+
+    def transform(self, X):
+        if self.log:
+            dic_neg = dict(zip(self.neg_skew_att_,
+                np.log(1 + self.max - X[self.neg_skew_att_].values).T))
+            dic_pos = dict(zip(self.pos_skew_att_,
+                np.log(1 + X[self.pos_skew_att_].values).T))
+        else:
+            dic_neg = dict(zip(self.neg_skew_att_,
+                np.sqrt(1 + self.max - X[self.neg_skew_att_].values).T))
+            dic_pos = dict(zip(self.pos_skew_att_,
+                np.sqrt(1 + X[self.pos_skew_att_].values).T))
+        return (X.assign(**dic_neg)
+                 .assign(**dic_pos))
 
     def get_feature_names(self):
         if self.log:
@@ -187,10 +148,5 @@ class SkewCleaner(BaseEstimator, TransformerMixin):
         else:
             neg_att_names = [c + "_sqrt_rev" for c in self.neg_skew_att_]
             pos_att_names = [c + "_sqrt" for c in self.pos_skew_att_]
-        return dict(zip(self.neg_skew_att + self.pos_skew_att,
+        return dict(zip(self.neg_skew_att_ + self.pos_skew_att_,
                         neg_att_names + pos_att_names))
-
-
-    def transform(self, X):
-        return (X.assign(**self.dic_neg_)
-                 .assign(**self.dic_pos_))
