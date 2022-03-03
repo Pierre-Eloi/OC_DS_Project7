@@ -150,3 +150,18 @@ class SkewCleaner(BaseEstimator, TransformerMixin):
             pos_att_names = [c + "_sqrt" for c in self.pos_skew_att_]
         return dict(zip(self.neg_skew_att_ + self.pos_skew_att_,
                         neg_att_names + pos_att_names))
+
+# Feature Selector
+class TopFeatureSelector(BaseEstimator, TransformerMixin):
+    """Select features based on the mask entered in parameter
+    Parameters:
+    -----------
+    feature_mask: : array-like
+        Mask to filter features
+    """
+    def __init__(self, feature_mask):
+        self.feature_mask = feature_mask
+    def fit(self, X, y=None):
+        return self
+    def transform(self, X):
+        return X[:, self.feature_mask]
