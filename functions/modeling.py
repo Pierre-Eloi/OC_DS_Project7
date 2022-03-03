@@ -24,9 +24,7 @@ from sklearn.metrics import make_scorer
 cv = StratifiedKFold(5, shuffle=True, random_state=42)
 
 def get_models():
-    """Get a list of the most common classification models to evaluate:
-    - Ridge classifier
-    - Logistic Regression
+    """Get a list of the most common classification models to evaluate:    - Logistic Regression
     - SVM, linear kernel
     - K Neighbors Classifier
     - Gaussian Naive Bayes
@@ -40,7 +38,8 @@ def get_models():
         dict
     """
     models = {}
-    models['Logistic Regression'] = LogisticRegression()
+    models['Logistic Regression'] = LogisticRegression(random_state=42,
+                                                       solver='liblinear')
     models['SVM - Linear kernel'] = SGDClassifier(loss='hinge', random_state=42)
     models['KNN Classifier'] = KNeighborsClassifier()
     models['Random Forest Classifier'] = RandomForestClassifier(random_state=42,
