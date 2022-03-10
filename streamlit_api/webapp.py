@@ -29,7 +29,7 @@ classifier = model['classifier']
 
 @st.experimental_memo # replace @st.cache, do refer to the doc for clarifications
 def load_data(feature_names):
-    data = (pd.read_csv(data_path)
+    data = (pd.read_parquet(data_path)
               .set_index('SK_ID_CURR'))
     X = transformer.transform(data)
     return pd.DataFrame(X, columns=feature_names, index=data.index)
@@ -63,7 +63,7 @@ def score_predictor(X):
     Return:
         predicted score
     """
-    return classifier.predict_proba(X.values)[:, 1] > 0.2
+    return classifier.predict_proba(X)[:, 1] > 0.2
 # Import a SHAP explainer based on the predictor above
 with open('explainer.pkl', 'rb') as file:
     explainer = pickle.load(file)
@@ -104,7 +104,6 @@ def top_features(shap_values, feature_names, max_display=10):
 
 
 # To automatically display results when changing a widget value
-
 if st.button('Get predictions'):
     st.session_state['get_results'] = True
 
@@ -139,11 +138,8 @@ if st.session_state['get_results']:
             # Select a feature
             feature = st.selectbox('Select a feature to plot', top_features,
                                    key='dis_feature')
-            #if st.button('Next feature'):
-                #i = top_features.index(session_state['dis_feature'])
-                #session_state['dis_feature'] = top_features[i+1]
             client_val = round(float(client_data[feature]), 2)
-            dis_data = data[feature].values.reshape(1, -1)
+            dis_data = data[feature]
             # Plot the feature distribution
             st.write('client value', client_val)
             dis_plot = plt.figure()
