@@ -28,7 +28,7 @@ import imblearn.pipeline as imbpipe
 import shap
 import pickle
 
-app_train = pd.read_csv('data/application_train.csv')
+app_train = pd.read_parquet('datasets/application_train.pqt')
 X = app_train.drop(['SK_ID_CURR', 'TARGET'], axis=1)
 y = app_train['TARGET']
 # Classifier parameter found by grid search
