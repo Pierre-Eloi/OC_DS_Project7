@@ -3,3 +3,5 @@ data/*
 charts/*
 .DS_Store
 .ipynb_checkpoints/*
+images/*
+reports/*
