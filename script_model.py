@@ -140,8 +140,7 @@ def get_feature_names(X, feature_mask):
                   'CREDIT_TERM']
     extra_att = np.concatenate((['DAYS_EMPLOYED_ANOM'], domain_att), axis=None)
     skew_transformer = prep_pipeline.get_params()['dense__skew_transformer']
-    dense_att_tr = (pd.Series(dense_att_tr)
-                      .append(pd.Series(extra_att))
+    dense_att_tr = (pd.concat([pd.Series(dense_att_tr), pd.Series(extra_att)])
                       .replace(skew_transformer.get_feature_names()))
     # Concatenate all attributes
     all_att = np.concatenate(
