@@ -1,10 +1,11 @@
 #! /usr/bin/env python3
-# coding: utf-8
+# -*- coding: utf-8 -*-
 
 import streamlit as st
 import streamlit.components.v1 as components
 import s3fs
-import os
+import requests
+import json
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -27,22 +28,30 @@ fs = s3fs.S3FileSystem(anon=False)
 def load_data(filename):
     with fs.open(filename) as f:
         return (pd.read_parquet(f)
-                  .set_index('SK_ID_CURR'))
+                  .set_index('SK_ID_CURR')
+                  .to_json())
 
 data_load_state = st.text('Loading data...')
-data = load_data("oc-project7-per/datasets/application_test.pqt")
+json_data = load_data("oc-project7-per/datasets/application_test.pqt")
+# Get predictions
+url = ''
+endpoint = '/api/predictions'
+response = requests.post(f"{url}{endpoint}", json=json_data)
+data = json.loads(response.content.decode('utf-8'))
 data_load_state.text("Loading data...completed")
 
+#######
 # read the model pickle file
-with open('model.pkl', 'rb') as model_file:
-    model = pickle.load(model_file)
-transformer = model['transformer']
-features_selected = model['features_selected']
-classifier = model['classifier']
+#with open('model.pkl', 'rb') as model_file:
+    #model = pickle.load(model_file)
+#transformer = model['transformer']
+#features_selected = model['features_selected']
+#classifier = model['classifier']
 
-data_tr = pd.DataFrame(transformer.transform(data),
-                       columns=features_selected,
-                       index=data.index)
+#data_tr = pd.DataFrame(transformer.transform(data),
+                       #columns=features_selected,
+                       #index=data.index)
+######
 
 # Let the user enter the client's id
 if 'get_results' not in st.session_state:
@@ -52,23 +61,29 @@ def reinit_results():
 st.subheader("Client's ID")
 client_id = st.number_input('Insert a client ID',min_value = 100001,
                             max_value=500000, on_change=reinit_results)
-client_data = data_tr.loc[[client_id]]
+client_data = data.loc[[client_id]]
 
 # Create a predictor returning a 90% Recall
 @st.experimental_memo
-def score_predictor(X):
+def score_predictor(df):
     """Predict a score with a 90% Recall.
     -----------
     Parameters:
-    X: array-like
+    df: dataframe
         The data to predict
     -----------
     Return:
         predicted score
     """
-    return classifier.predict_proba(X)[:, 1] > 0.2
+    return df['probability'] > 0.2
 
-# Import a SHAP explainer based on the predictor above
+# read pickle files
+# The SHAP explainer is based on the predictor above
+with open('model.pkl', 'rb') as model_file:
+    model = pickle.load(model_file)
+transformer = model['transformer']
+features_selected = model['features_selected']
+classifier = model['classifier']
 with open('explainer.pkl', 'rb') as file:
     explainer = pickle.load(file)
 
@@ -115,7 +130,7 @@ if st.button('Get predictions'):
 if st.session_state['get_results']:
     st.header('Results')
     prediction = int(score_predictor(client_data))
-    probability = classifier.predict_proba(client_data)[:, 1]
+    probability = client_data['probability']
     st.write('Client', client_id)
     st.write('Score', prediction)
     st.write('Probability', round(float(probability), 2))
@@ -143,7 +158,7 @@ if st.session_state['get_results']:
         feature = st.selectbox('Select a feature to plot', top_features,
                                key='dis_feature')
         client_val = round(float(client_data[feature]), 2)
-        dis_data = data_tr[feature]
+        dis_data = data[feature]
         # Plot the feature distribution
         st.write('client value', client_val)
         dis_plot = plt.figure()
