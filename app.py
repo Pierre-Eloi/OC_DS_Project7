@@ -17,7 +17,7 @@ classifier = model['classifier']
 
 app = Flask(__name__)
 
-@app.route('/api/predictions')
+@app.route('/api/', methods=['POST'])
 def get_prediction():
     json_data = request.get_json()
     #read the real time input to pandas df
