@@ -6,4 +6,3 @@ data/*
 env/*
 functions/__pycache__/*
 reports/*
-streamlit_api/functions/__pycache__/*
