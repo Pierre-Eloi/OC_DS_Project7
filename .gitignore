@@ -3,6 +3,7 @@
 .streamlit/*
 charts/*
 data/*
+dataset/*
 env/*
 functions/__pycache__/*
 reports/*
