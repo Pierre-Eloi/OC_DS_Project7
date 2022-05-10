@@ -30,4 +30,4 @@ def get_prediction():
     return data_tr.to_json() 
 
 if __name__ == '__main__':
-    app.run( port=5000)
+    app.run(port=5000)
