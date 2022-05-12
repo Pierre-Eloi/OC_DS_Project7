@@ -6,7 +6,6 @@ import pandas as pd
 import numpy as np
 import pickle
 import json
-import shap
 
 # read the model pickle file
 with open('model.pkl', 'rb') as model_file:
