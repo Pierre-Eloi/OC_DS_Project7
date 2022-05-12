@@ -18,9 +18,12 @@ app = Flask(__name__)
 
 @app.route('/api/', methods=['POST'])
 def get_prediction():
+    # read the real time input
     json_data = request.get_json()
-    #read the real time input to pandas df
-    data = pd.DataFrame(json_data)
+    # convert json data to dictionnary
+    dict_data = json.loads(json_data)
+    # convert to pandas df
+    data = pd.DataFrame(dict_data)
     #transform DataFrame
     data_tr = pd.DataFrame(transformer.transform(data),
                            columns=features_selected,
