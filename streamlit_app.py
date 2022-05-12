@@ -34,8 +34,8 @@ def load_data(filename):
 data_load_state = st.text('Loading data...')
 json_data = load_data("oc-project7-per/datasets/application_test.pqt")
 # Get predictions
-url = ''
-endpoint = '/api/predictions'
+url = 'https://oc-p7-per.herokuapp.com/'
+endpoint = '/api/'
 response = requests.post(f"{url}{endpoint}", json=json_data)
 data = json.loads(response.content.decode('utf-8'))
 data_load_state.text("Loading data...completed")
