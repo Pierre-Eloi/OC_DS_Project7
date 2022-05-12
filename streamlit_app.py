@@ -38,7 +38,8 @@ st.text('raw data loaded')
 url = 'https://oc-p7-per.herokuapp.com'
 endpoint = '/api/'
 response = requests.post(f"{url}{endpoint}", json=json_data)
-data = pd.DataFrame(json.loads(response))
+content = json.loads(response.content.decode('utf-8'))
+data = pd.DataFrame(content)
 #data = json.loads(response.content.decode('utf-8'))
 data_load_state.text("Loading data...completed")
 
