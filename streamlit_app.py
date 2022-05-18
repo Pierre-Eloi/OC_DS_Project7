@@ -13,12 +13,19 @@ import seaborn as sns
 import pickle
 import shap
 
-# Setting page config to wide mode
+# Heroku API
+url = 'https://oc-p7-per.herokuapp.com'
+
+# read the model pickle file
+with open('model.pkl', 'rb') as model_file:
+    model = pickle.load(model_file)
+transformer = model['transformer']
+feature_names = model['features_selected']
+classifier = model['classifier']
+
+
 st.set_page_config(layout="wide")
-
 st.title('Python Real Time Scoring API with Home Credit data')
-
-# description and instructions
 st.write("""A real time scoring API to predict clients' repayment abilities""")
 
 # Create connection object.
@@ -27,34 +34,15 @@ fs = s3fs.S3FileSystem(anon=False)
 @st.experimental_memo # replace @st.cache, do refer to the doc for clarifications
 def load_data(filename):
     with fs.open(filename) as f:
-        return (pd.read_parquet(f)
-                  .set_index('SK_ID_CURR')
-                  .to_json())
+        raw_data = (pd.read_parquet(f)
+                      .set_index('SK_ID_CURR'))
+        return pd.DataFrame(transformer.transform(raw_data),
+                            columns=feature_names,
+                            index=raw_data.index)
 
 data_load_state = st.text('Loading data...')
-json_data = load_data("oc-project7-per/datasets/application_test.pqt")
-st.text('raw data loaded')
-# Get predictions
-url = 'https://oc-p7-per.herokuapp.com'
-endpoint = '/api/'
-response = requests.post(f"{url}{endpoint}", json=json_data)
-content = json.loads(response.content.decode('utf-8'))
-data = pd.DataFrame(content)
-#data = json.loads(response.content.decode('utf-8'))
+data = load_data("oc-project7-per/datasets/application_test.pqt")
 data_load_state.text("Loading data...completed")
-
-#######
-# read the model pickle file
-#with open('model.pkl', 'rb') as model_file:
-    #model = pickle.load(model_file)
-#transformer = model['transformer']
-#features_selected = model['features_selected']
-#classifier = model['classifier']
-
-#data_tr = pd.DataFrame(transformer.transform(data),
-                       #columns=features_selected,
-                       #index=data.index)
-######
 
 # Let the user enter the client's id
 if 'get_results' not in st.session_state:
@@ -82,11 +70,6 @@ def score_predictor(df):
 
 # read pickle files
 # The SHAP explainer is based on the predictor above
-with open('model.pkl', 'rb') as model_file:
-    model = pickle.load(model_file)
-transformer = model['transformer']
-features_selected = model['features_selected']
-classifier = model['classifier']
 with open('explainer.pkl', 'rb') as file:
     explainer = pickle.load(file)
 
@@ -132,21 +115,40 @@ if st.button('Get predictions'):
 # Display results
 if st.session_state['get_results']:
     st.header('Results')
-    prediction = int(score_predictor(client_data))
-    probability = client_data['probability']
-    st.write('Client', client_id)
-    st.write('Score', prediction)
-    st.write('Probability', round(float(probability), 2))
-    if prediction == 1:
-        st.write('The client will probably be **in default**')
+    # Get Predictions
+    json_data = client_data.to_json()
+    endpoint = '/predictions/'
+    pred_state = st.text("Waiting for predictions...")
+    response = requests.post(f'{url}{endpoint}', json=json_data)
+    if response.status_code != 200:
+        pred_state.text("error: the prediction API request did not work")
     else:
-        st.write('Client default is **unlikely**')
+        pred_state.text("predictions successfully loaded")
+        client_data = pd.DataFrame(json.loads(response.content))
+        score = int(client_data['score'])
+        probability = round(float(client_data['probability']), 2)
+    st.write('**Client:**', client_id)
+    st.write('**Score:**', score)
+    st.write('**probability:**', probability)
+    if score == 1:
+        message = '<span style="font-size:20px; color:red">\
+                    The client will probably be in **default**.</span>'
+    else:
+        message = '<span style="font-size:20px; color:green">\
+                   The Client\'s default is **unlikely**</span>'
+    st.markdown(message, unsafe_allow_html=True)
     # laying out the middle section of the app
     col_1, col_2 = st.columns((1, 1))
     with col_1:
         # SHAP force plot
-        st.subheader('Model Prediction Interpretation Plot')
-        p, shap_values = explain_model(client_data)
+        st.subheader('Prediction Interpretation Plot')
+        # Get shap values
+        endpoint = '/explainer/'
+        response = requests.post(f'{url}{endpoint}', json=json_data)
+        if response.status_code != 200:
+            st.text("error: the explainer API request did not work")
+        else:
+            p, shap_values = json.loads(response.content)
         st_shap(p)
         # Summary plot
         st.subheader('Summary Plot')
@@ -156,7 +158,7 @@ if st.session_state['get_results']:
     with col_2:
         # Get the top features
         st.subheader('Distribution plot')
-        top_features = top_features(shap_values, features_selected)
+        top_features = top_features(shap_values, feature_names)
         # Select a feature
         feature = st.selectbox('Select a feature to plot', top_features,
                                key='dis_feature')
