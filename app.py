@@ -38,16 +38,16 @@ def hello():
     # A welcome message to test the api
     return "<h1>Welcome to my prediction api!</h1>"
 
-@app.route('/predictions/', methods=['POST'])
-def get_predictions():
-    content = request.get_json()
-    data = pd.DataFrame(json.loads(content))
-    # get the right features order
-    data = data[feature_names]
-    # get predictions
-    score = int(score_predictor(data.values))
-    probability = round(float(clf.predict_proba(data.values)[:, 1]), 2)
-    return jsonify(score, probability)
+# @app.route('/predictions/', methods=['POST'])
+# def get_predictions():
+#     content = request.get_json()
+#     data = pd.DataFrame(json.loads(content))
+#     # get the right features order
+#     data = data[feature_names]
+#     # get predictions
+#     score = int(score_predictor(data.values))
+#     probability = round(float(clf.predict_proba(data.values)[:, 1]), 2)
+#     return jsonify(score, probability)
 
 # @app.route('/shap/', methods=['POST'])
 # def get_shap_values():
