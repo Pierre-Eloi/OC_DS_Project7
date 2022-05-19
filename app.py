@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify
 import pandas as pd
 import pickle
 import json
-#import shap
+import shap
 
 # read the model pickle file
 with open('model.pkl', 'rb') as model_file:
@@ -28,8 +28,8 @@ def score_predictor(X):
 
 # read pickle files
 # The SHAP explainer is based on the predictor above
-# with open('explainer.pkl', 'rb') as exp_file:
-#     explainer = pickle.load(exp_file)
+with open('explainer.pkl', 'rb') as exp_file:
+    explainer = pickle.load(exp_file)
 
 app = Flask(__name__)
 
@@ -45,17 +45,16 @@ def get_predictions():
     # get the right features order
     data = data[feature_names]
     # get predictions
-    data['probability'] = clf.predict_proba(data.values)[:, 1]
-    data['score'] = score_predictor(data.drop(columns='probability').values)
-    return jsonify(data.to_dict())
+    score = int(score_predictor(data.values))
+    probability = round(float(clf.predict_proba(data.values)[:, 1]), 2)
+    return jsonify(score, probability)
 
-# @app.route('/explainer/', methods=['POST'])
-# def explain_predictions():
-#     content = request.get_json()
-#     data = pd.DataFrame(json.loads(content))
-#     shap_values = explainer.shap_values(data)
-#     f_plot = shap.force_plot(explainer.expected_value, shap_values, data)
-#     return jsonify(f_plot, shap_values)
+@app.route('/shap/', methods=['POST'])
+def get_shap_values():
+    content = request.get_json()
+    data = pd.DataFrame(json.loads(content))
+    shap_values = explainer.shap_values(data).tolist()[0]
+    return jsonify([shap_values, explainer.expected_value])
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=5000)
