@@ -38,23 +38,23 @@ def hello():
     # A welcome message to test the api
     return "<h1>Welcome to my prediction api!</h1>"
 
-# @app.route('/predictions/', methods=['POST'])
-# def get_predictions():
-#     content = request.get_json()
-#     data = pd.DataFrame(json.loads(content))
-#     # get the right features order
-#     data = data[feature_names]
-#     # get predictions
-#     score = int(score_predictor(data.values))
-#     probability = round(float(clf.predict_proba(data.values)[:, 1]), 2)
-#     return jsonify(score, probability)
+@app.route('/predictions/', methods=['POST'])
+def get_predictions():
+    content = request.get_json()
+    data = pd.DataFrame(json.loads(content))
+    # get the right features order
+    data = data[feature_names]
+    # get predictions
+    score = int(score_predictor(data.values))
+    probability = round(float(clf.predict_proba(data.values)[:, 1]), 2)
+    return jsonify(score, probability)
 
-# @app.route('/shap/', methods=['POST'])
-# def get_shap_values():
-#     content = request.get_json()
-#     data = pd.DataFrame(json.loads(content))
-#     shap_values = explainer.shap_values(data).tolist()[0]
-#     return jsonify(shap_values, explainer.expected_value)
+@app.route('/shap/', methods=['POST'])
+def get_shap_values():
+    content = request.get_json()
+    data = pd.DataFrame(json.loads(content))
+    shap_values = explainer.shap_values(data).tolist()[0]
+    return jsonify(shap_values, explainer.expected_value)
 
 if __name__ == '__main__':
     app.run(port=5000)
