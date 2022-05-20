@@ -11,7 +11,7 @@ import shap
 with open('model.pkl', 'rb') as model_file:
     model = pickle.load(model_file)
 feature_names = model['features_selected']
-clf = model['classifier']
+classifier = model['classifier']
 
 # Create a predictor returning a 90% Recall
 def score_predictor(X):
@@ -24,7 +24,7 @@ def score_predictor(X):
     Return:
         predicted score
     """
-    return clf.predict_proba(X)[:, 1] > 0.2
+    return classifier.predict_proba(X)[:, 1] > 0.2
 
 # read pickle files
 # The SHAP explainer is based on the predictor above
