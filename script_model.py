@@ -25,7 +25,6 @@ from functions.preprocessing import TopFeatureSelector
 from imblearn.over_sampling import SMOTE
 from imblearn.under_sampling import RandomUnderSampler
 import imblearn.pipeline as imbpipe
-import shap
 import pickle
 
 app_train = pd.read_parquet('datasets/application_train.pqt')
@@ -171,18 +170,12 @@ def main():
     X_tr = transformer.fit_transform(X)
     X_sampled, y_sampled = sampling_pipeline.fit_resample(X_tr, y)
     classifier.fit(X_sampled, y_sampled)
-    # Get the SHAP explainer
-    means = np.mean(transformer.transform(X), axis=0).reshape(1, -1)
-    explainer = shap.KernelExplainer(score_predictor, means)
     # Save the model with Pickle
     model = {'transformer': transformer,
              'features_selected': features_selected,
              'classifier': classifier}
     with open('model.pkl', 'wb') as model_file:
         pickle.dump(model, model_file)
-    # Save the explainer with Pickle
-    with open('explainer.pkl', 'wb') as file:
-        pickle.dump(explainer, file)
 
 if __name__ == "__main__":
     main()
