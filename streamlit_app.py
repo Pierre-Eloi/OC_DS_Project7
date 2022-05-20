@@ -67,18 +67,24 @@ def get_predictions(json_data):
         return json.loads(response.content)                          
 
 @st.experimental_memo
-def get_shap_values(json_data):
+def get_shap_values(data, means):
     """function to get shap values using POST rsquest
      -----------
     Parameters:
     json_data: JSON string
         data in json format
+    data: pandas DataFrame
+        data
+    means: array
+        means of each feature
     -----------
     Return:
         a tuple with shap values & expected value
     """
     endpoint = '/shap/'
-    response = requests.post(f'{url}{endpoint}', json=json_data)
+    #response = requests.post(f'{url}{endpoint}', json=json_data)
+    response = requests.post(f'{url}{endpoint}',
+                             json={'data':data.to_dict(), 'means': means.tolist()})
     if response.status_code != 200:
         
         return None
@@ -169,7 +175,8 @@ if st.session_state['get_results']:
     with col_1:
         st.subheader('Prediction Interpretation Plot')
         # Get shap values
-        shap_values, exp_value = get_shap_values(json_data)
+        means = np.mean(data.values, axis=0)
+        shap_values, exp_value = get_shap_values(client_data, means)
         if shap_values is None:
             st.text("error: the explainer API request did not work") 
         else:
