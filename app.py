@@ -3,6 +3,7 @@
 
 from flask import Flask, request, jsonify
 import pandas as pd
+import numpy as np
 import pickle
 import json
 import shap
@@ -47,8 +48,8 @@ def get_predictions():
 @app.route('/shap/', methods=['POST'])
 def get_shap_values():
     content = request.get_json()
-    means = json.loads(content['means'])
-    data = pd.DataFrame(json.loads(content['data']))
+    means = np.array(content['means']).reshape(1, -1)
+    data = pd.DataFrame(content['data'])
     explainer = shap.KernelExplainer(score_predictor, means)
     shap_values = explainer.shap_values(data).tolist()[0]
     return jsonify(shap_values, explainer.expected_value)
