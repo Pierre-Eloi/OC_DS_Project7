@@ -44,5 +44,14 @@ def get_predictions():
     probability = round(float(clf.predict_proba(data.values)[:, 1]), 2)
     return jsonify(score, probability)
 
+@app.route('/shap/', methods=['POST'])
+def get_shap_values():
+    content = request.get_json()
+    means = json.loads(content['means'])
+    data = pd.DataFrame(json.loads(content['data']))
+    explainer = shap.KernelExplainer(score_predictor, means)
+    shap_values = explainer.shap_values(data).tolist()[0]
+    return jsonify(shap_values, explainer.expected_value)
+
 if __name__ == '__main__':
     app.run(port=5000)
