@@ -14,7 +14,7 @@ import pickle
 import shap
 
 
-# -------VARIABLE DECLERATION-------
+# -------VARIABLE DECLARATION-------
 
 # Heroku API
 url = 'https://oc-p7-per.herokuapp.com'
