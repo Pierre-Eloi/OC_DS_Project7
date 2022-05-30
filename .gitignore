@@ -3,6 +3,8 @@
 .streamlit/*
 charts/*
 data/*
+datasets/application_test_tr.pqt
+datasets/application_train_tr.pqt
 env/*
 functions/__pycache__/*
 reports/*
