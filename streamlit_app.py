@@ -20,13 +20,7 @@ import shap
 url = 'https://oc-p7-per.herokuapp.com'
 # Create connection object.
 fs = s3fs.S3FileSystem(anon=False) # `anon=False` means not anonymous, i.e. it uses access keys to pull data.
-data_path = "oc-project7-per/datasets/application_test.pqt"
-# read the model pickle file
-with open('model.pkl', 'rb') as model_file:
-    model = pickle.load(model_file)
-transformer = model['transformer']
-feature_names = model['features_selected']
-
+data_path = "oc-project7-per/datasets/application_test_tr.pqt"
 
 # -------FUNCTIONS-------
 
@@ -42,11 +36,7 @@ def load_data(file_path):
         a DataFrame with data processed
     """
     with fs.open(file_path) as f:
-        raw_data = (pd.read_parquet(f)
-                      .set_index('SK_ID_CURR'))
-        return pd.DataFrame(transformer.transform(raw_data),
-                            columns=feature_names,
-                            index=raw_data.index)
+        return pd.read_parquet(f)
 
 @st.experimental_memo
 def get_predictions(json_data):
@@ -142,6 +132,7 @@ client_id = st.number_input('Insert a client ID',min_value = 100001,
                             max_value=500000, on_change=reinit_results)
 client_data = data.loc[[client_id]]
 json_data = client_data.to_json()
+st.write(json_data)
 
 if 'get_results' not in st.session_state:
     st.session_state['get_results'] = False
@@ -189,7 +180,7 @@ if st.session_state['get_results']:
     with col_2:
         # Get the top features
         st.subheader('Distribution plot')
-        top_features = top_features(shap_values, feature_names)
+        top_features = top_features(shap_values, data.columns)
         # Select a feature
         feature = st.selectbox('Select a feature to plot', top_features,
                                key='dis_feature')
