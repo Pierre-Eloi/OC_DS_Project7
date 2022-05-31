@@ -132,7 +132,6 @@ client_id = st.number_input('Insert a client ID',min_value = 100001,
                             max_value=500000, on_change=reinit_results)
 client_data = data.loc[[client_id]]
 json_data = client_data.to_json()
-st.write(json_data)
 
 if 'get_results' not in st.session_state:
     st.session_state['get_results'] = False
