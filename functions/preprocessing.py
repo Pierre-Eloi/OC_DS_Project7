@@ -98,7 +98,7 @@ class DomainAdder(BaseEstimator, TransformerMixin):
                      .assign(ANNUITY_INCOME_PERC=lambda x:
                          x['AMT_ANNUITY'] / x['AMT_INCOME_TOTAL'])
                      .assign(CREDIT_TERM=lambda x:
-                         x['AMT_ANNUITY'] / x['AMT_CREDIT']))
+                         x['AMT_CREDIT'] / x['AMT_ANNUITY']))
         else:
             return X
 
