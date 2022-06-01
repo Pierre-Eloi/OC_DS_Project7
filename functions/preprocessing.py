@@ -72,10 +72,10 @@ class DenseCleaner(BaseEstimator, TransformerMixin):
 class DomainAdder(BaseEstimator, TransformerMixin):
     """Add five domain Knowledge attributes:
     - DAYS_EMPLOYED_PERC: the percentage of the days employed relative to the client's age
-    - CREDIT_VS_INCOME: the credit amount relative to a client's income
+    - INCOME_CREDIT_PERC: the percentage of the client's income relative to the credit amount 
     - INCOME_PER_PERSON: the client's income relative to the size of the client's family
-    - ANNUITY_INCOME_PERC: the percentage of the loan annuity relative to a client's income
-    - PAYMENT_RATE: the yearly repayment rate
+    - ANNUITY_INCOME_PERC: the percentage of the loan annuity relative to the client's income
+    - PAYMENT_RATE: the annual repayment rate
     Parameters:
     -----------
     add_domain_features: bool, default=True
@@ -91,8 +91,8 @@ class DomainAdder(BaseEstimator, TransformerMixin):
         if self.add_domain:
             return (X.assign(DAYS_EMPLOYED_PERC=lambda x:
                          x['DAYS_EMPLOYED'] / x['DAYS_BIRTH'])
-                     .assign(CREDIT_VS_INCOME=lambda x:
-                         x['AMT_CREDIT'] / x['AMT_INCOME_TOTAL'])
+                     .assign(INCOME_CREDIT_PERC=lambda x:
+                         x['AMT_INCOME_TOTAL'] / x['AMT_CREDIT'])
                      .assign(INCOME_PER_PERSON=lambda x:
                          x['AMT_INCOME_TOTAL'] / x['CNT_FAM_MEMBERS'])
                      .assign(ANNUITY_INCOME_PERC=lambda x:
