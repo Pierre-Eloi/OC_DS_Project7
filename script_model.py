@@ -133,10 +133,10 @@ def get_feature_names(X, feature_mask):
     dense_mask = prep_pipeline.get_params()['dense__filter'].mask_
     dense_att_tr = dense_att[~dense_mask]
     domain_att = ['DAYS_EMPLOYED_PERC',
-                  'CREDIT_INCOME_PERC',
+                  'CREDIT_VS_INCOME',
                   'INCOME_PER_PERSON',
                   'ANNUITY_INCOME_PERC',
-                  'CREDIT_TERM']
+                  'PAYMENT_RATE']
     extra_att = np.concatenate((['DAYS_EMPLOYED_ANOM'], domain_att), axis=None)
     skew_transformer = prep_pipeline.get_params()['dense__skew_transformer']
     dense_att_tr = (pd.concat([pd.Series(dense_att_tr), pd.Series(extra_att)])
