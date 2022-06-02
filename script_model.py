@@ -27,12 +27,11 @@ from imblearn.under_sampling import RandomUnderSampler
 import imblearn.pipeline as imbpipe
 import pickle
 
+cv = StratifiedKFold(5, shuffle=True, random_state=42)
 app_train = pd.read_parquet('datasets/application_train.pqt')
 X = app_train.drop(['SK_ID_CURR', 'TARGET'], axis=1)
 y = app_train['TARGET']
-# Classifier parameter found by grid search
-classifier = LogisticRegression(C=0.01, random_state=42, solver='liblinear')
-cv = StratifiedKFold(5, shuffle=True, random_state=42)
+
 # Get the categorical attributes
 cat_att = X.select_dtypes('object').columns
 # Get the numerical attributes
@@ -44,6 +43,7 @@ sparse_att = np.array([c for c in num_att
 dense_att = np.array([c for c in num_att
                       if c not in ord_att
                       and c not in sparse_att])
+
 # Create a pipeline for data preparation
 # Pipeline parameters found by grid search
 cat_pipeline = Pipeline([
@@ -65,7 +65,7 @@ dense_pipeline = Pipeline([
     ('filter', NaAttFilter(na_threshold=0.4)),
     ('cleaner', DenseCleaner()),
     ('domain_adder', DomainAdder(add_domain=True)),
-    ('skew_transformer', SkewCleaner(log=False, threshold=1.6)),
+    ('skew_transformer', SkewCleaner(log=False, threshold=.7)),
     ('imputer', SimpleImputer(strategy='mean')),
     ('scaler', StandardScaler())
     ])
@@ -79,12 +79,16 @@ transformer = Pipeline([
     ('preprocessing', prep_pipeline),
     ('feature_selection', TopFeatureSelector(feature_mask=None))
     ])
+
 # Create a sampling pipeline to balance the dataset
 # Pipeline parameters found by grid search
 sampling_pipeline = imbpipe.Pipeline([
     ('over', SMOTE(random_state=42, sampling_strategy=0.3)),
     ('under', RandomUnderSampler(random_state=42, sampling_strategy=0.6))
     ])
+
+# Classifier parameter found by grid search
+classifier = LogisticRegression(C=0.01, random_state=42, solver='liblinear')
 
 def get_feature_mask(X, y):
     """ Feature selection with recurcive feature elimination.
@@ -99,7 +103,7 @@ def get_feature_mask(X, y):
         The mask of selected features
     """
     clf = SGDClassifier(loss='hinge', random_state=42, average=True)
-    selector = RFE(clf, n_features_to_select=80, step=5)
+    selector = RFE(clf, n_features_to_select=85, step=5)
     selector.fit(X, y)
     return selector.support_
 
@@ -133,7 +137,7 @@ def get_feature_names(X, feature_mask):
     dense_mask = prep_pipeline.get_params()['dense__filter'].mask_
     dense_att_tr = dense_att[~dense_mask]
     domain_att = ['DAYS_EMPLOYED_PERC',
-                  'CREDIT_VS_INCOME',
+                  'INCOME_CREDIT_PERC',
                   'INCOME_PER_PERSON',
                   'ANNUITY_INCOME_PERC',
                   'PAYMENT_RATE']
@@ -166,7 +170,7 @@ def main():
     feature_mask = get_feature_mask(X_sampled, y_sampled)
     features_selected = get_feature_names(X, feature_mask)
     # Train the Classifier
-    transformer['feature_selection'].feature_mask=feature_mask
+    transformer['feature_selection'].feature_mask = feature_mask
     X_tr = transformer.fit_transform(X)
     X_sampled, y_sampled = sampling_pipeline.fit_resample(X_tr, y)
     classifier.fit(X_sampled, y_sampled)
