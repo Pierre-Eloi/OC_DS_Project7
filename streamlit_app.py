@@ -76,7 +76,6 @@ def get_shap_values(data, means):
     response = requests.post(f'{url}{endpoint}',
                              json={'data':data.to_dict(), 'means': means.tolist()})
     if response.status_code != 200:
-        
         return None
     else:
         shap_values, exp_value = json.loads(response.content)
