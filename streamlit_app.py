@@ -17,7 +17,7 @@ import shap
 # -------VARIABLE DECLARATION-------
 
 # Heroku API
-url = 'https://oc-p7-per.herokuapp.com'
+url = 'https://per-oc-p7.herokuapp.com'
 # Create connection object.
 fs = s3fs.S3FileSystem(anon=False) # `anon=False` means not anonymous, i.e. it uses access keys to pull data.
 data_path = "oc-project7-per/datasets/application_test_tr.pqt"
